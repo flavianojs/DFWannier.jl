@@ -306,8 +306,6 @@ end
     #                    G_backward[j, i]
     # end
     # return t
-
-    # println("Flaviano old (Dev) Jω")
     D_site1    = view(D, ra1, ra1)
     D_site2    = view(D, ra2, ra2)
     G_forward  = view(G, exch.atom1, exch.atom2, Up())

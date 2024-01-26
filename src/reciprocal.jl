@@ -1,5 +1,5 @@
-using Printf: @printf # Flaviano
-using Printf: @sprintf # Flaviano
+using Printf: @printf
+using Printf: @sprintf
 
 const K_CART_TYPE{T} = Quantity{T,Unitful.𝐋^-1,
                                 Unitful.FreeUnits{(Ang^-1,),Unitful.𝐋^-1,nothing}}
@@ -162,26 +162,6 @@ function HamiltonianKGrid(kpoints::Vector{<:Vec3}, args...)
     return HamiltonianKGrid(CoreKGrid(kpoints), args...)
 end
 
-#function to print a matrix
-function print_matrix(matrix)
-    for i= 1: size(matrix)[1]
-        for j=1: size(matrix)[2]
-            y = (matrix[i,j])
-            x1 = real(y)
-            x2 = imag(y)
-            if abs(x1) < 1e-8
-                x1 = abs(x1)
-            end
-            if abs(x2) < 1e-8
-                x2 = abs(x2)
-            end
-            print(@sprintf("%12.8f+%12.8fj ", x1, x2))
-            # print(y, " ")
-        end
-        println()
-    end
-end
-
 @doc raw"""
 	HamiltonianKGrid(hami::TBHamiltonian{T}, nk, H_function_k::Function = x -> nothing) where T
 	HamiltonianKGrid(hami::TBHamiltonian{T}, k_grid, H_function_k::Function = x -> nothing) where T
@@ -209,11 +189,6 @@ function HamiltonianKGrid(hami::TBHamiltonian{T}, kpoints::Vector{<:Vec3},
         
         copy!(kgrid.Hk[i], kgrid.eigvecs[i])
         Hk_function(kgrid.Hk[i])
-
-        # println("Flaviano k_cryst(kgrid)[i]: ", k_cryst(kgrid)[i]) # Very good verification point
-        # println("Flaviano Hk[i]: ") # Very good verification point
-        # print_matrix(kgrid.Hk[i]) # Very good verification point
-
         eigen!(kgrid.eigvals[i], kgrid.eigvecs[i], calc_caches[threadid()])
         next!(p)
     end
