@@ -1,3 +1,6 @@
+using Printf: @printf # Flaviano
+using Printf: @sprintf # Flaviano
+
 const K_CART_TYPE{T} = Quantity{T,Unitful.𝐋^-1,
                                 Unitful.FreeUnits{(Ang^-1,),Unitful.𝐋^-1,nothing}}
 
@@ -6,6 +9,10 @@ phases(kpoints::Vector{<:Vec3}, R::Vec3) = exp.(-2im * π .* dot.(kpoints, (R,))
 function uniform_shifted_kgrid(::Type{T}, nkx::Integer, nky::Integer,
                                nkz::Integer, gamma_center = false) where {T}
 
+    # Impose the kmesh generator numbers to be odd
+    nkx = div(nkx,2) * 2 + 1
+    nky = div(nky,2) * 2 + 1
+    nkz = div(nkz,2) * 2 + 1
     t = [Vec3{T}(kx, ky, kz) for kx in 0:nkx-1, ky in 0:nky-1, kz in 0:nkz-1]
     s = Vec3(nkx, nky, nkz)
     t = map(t) do x
@@ -17,7 +24,7 @@ function uniform_shifted_kgrid(::Type{T}, nkx::Integer, nky::Integer,
             x .+ shift
         end
     end
-                               
+    
     return reshape(t, nkx * nky * nkz)
 end
 
@@ -155,6 +162,26 @@ function HamiltonianKGrid(kpoints::Vector{<:Vec3}, args...)
     return HamiltonianKGrid(CoreKGrid(kpoints), args...)
 end
 
+#function to print a matrix
+function print_matrix(matrix)
+    for i= 1: size(matrix)[1]
+        for j=1: size(matrix)[2]
+            y = (matrix[i,j])
+            x1 = real(y)
+            x2 = imag(y)
+            if abs(x1) < 1e-8
+                x1 = abs(x1)
+            end
+            if abs(x2) < 1e-8
+                x2 = abs(x2)
+            end
+            print(@sprintf("%12.8f+%12.8fj ", x1, x2))
+            # print(y, " ")
+        end
+        println()
+    end
+end
+
 @doc raw"""
 	HamiltonianKGrid(hami::TBHamiltonian{T}, nk, H_function_k::Function = x -> nothing) where T
 	HamiltonianKGrid(hami::TBHamiltonian{T}, k_grid, H_function_k::Function = x -> nothing) where T
@@ -182,6 +209,11 @@ function HamiltonianKGrid(hami::TBHamiltonian{T}, kpoints::Vector{<:Vec3},
         
         copy!(kgrid.Hk[i], kgrid.eigvecs[i])
         Hk_function(kgrid.Hk[i])
+
+        # println("Flaviano k_cryst(kgrid)[i]: ", k_cryst(kgrid)[i]) # Very good verification point
+        # println("Flaviano Hk[i]: ") # Very good verification point
+        # print_matrix(kgrid.Hk[i]) # Very good verification point
+
         eigen!(kgrid.eigvals[i], kgrid.eigvecs[i], calc_caches[threadid()])
         next!(p)
     end
@@ -193,7 +225,8 @@ function Hk!(out::AbstractMatrix, tbhami::TBHamiltonian, kpoint::Vec3)
     fill!(out, zero(eltype(out)))
     
     fourier_transform(tbhami, kpoint) do i, iR, R_cart, b, fac
-        @inbounds out[i] += fac * b.block[i]
+        # @inbounds out[i] += fac * b.block[i]
+        @inbounds out[i] += fac * b.tb_block[i]
     end
     
 end

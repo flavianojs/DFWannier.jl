@@ -44,12 +44,12 @@ function integrate_simpson(f, x)
                               + 3. * dx[i - 1] * dx[i]^2) / (6 * dx[i] * xpx)
     end
 
-    if length(x) % 2 == 0
-        result += f(N) * (2 * dx[end - 1]^2
-                  + 3. * dx[end - 2] * dx[end - 1])/ (6 * (dx[end - 2] + dx[end - 1]))
-        result += f(N - 1) * (dx[end - 1]^2
-                      + 3*dx[end - 1] * dx[end - 2]) / (6 * dx[end - 2])
-        result -= f(N - 2) * dx[end - 1]^3/ (6 * dx[end - 2] * (dx[end - 2] + dx[end - 1]))
+    if N % 2 == 0
+        result += f(N) * (2 * dx[end]^2
+                  + 3. * dx[end - 1] * dx[end])/ (6 * (dx[end - 1] + dx[end]))
+        result += f(N - 1) * (dx[end]^2
+                      + 3*dx[end] * dx[end - 1]) / (6 * dx[end - 1])
+        result -= f(N - 2) * dx[end]^3/ (6 * dx[end - 1] * (dx[end - 1] + dx[end]))
     end
     return result
 end
@@ -234,7 +234,7 @@ function calc_exchanges(hami, structure::DFControl.Structures.Structure, atsyms:
                         R = Vec3(0, 0, 0),
                         ωh::T = T(-30.0), # starting energy
                         n_ωh::Int = 100,
-                        emax::T = T(0.001)) where {T<:AbstractFloat,E<:Exchange}
+                        emax::T = T(0.0)) where {T<:AbstractFloat,E<:Exchange}
     R_     = Vec3(R...)
     μ      = fermi
     ω_grid = setup_ω_grid_legendre(ωh, n_ωh, emax)
@@ -274,6 +274,15 @@ end
 spin_sign(D) = -sign(real(tr(D))) # up = +1, down = -1. If D_upup > D_dndn, onsite spin will be down and the tr(D) will be positive. Thus explaining the - in front of this.
 spin_sign(D::Vector) = sign(real(sum(D))) # up = +1, down = -1
 
+function perturbation_bubble(::Exchange2ndOrder, D_site1, G_forward, D_site2, G_backward)
+    return D_site1 * G_forward * D_site2 * G_backward
+end
+
+function perturbation_bubble(::Exchange4thOrder, D_site1, G_forward, D_site2, G_backward)
+    return D_site1 * G_forward * D_site2 * G_backward * D_site1 * G_forward * D_site2 *
+           G_backward
+end
+
 @inline function Jω(exch, D, G)
     if size(D, 1) < size(G, 1)
         ra1 = uprange(exch.atom1)
@@ -282,21 +291,33 @@ spin_sign(D::Vector) = sign(real(sum(D))) # up = +1, down = -1
         ra1 = range(exch.atom1)
         ra2 = range(exch.atom2)
     end
+    # D_site1    = view(D, ra1, ra1)
+    # D_site2    = view(D, ra2, ra2)
+    # s1         = spin_sign(D_site1)
+    # s2         = spin_sign(D_site2)
+    # t          = zeros(ComplexF64, size(exch.J))
+    # G_forward  = view(G, exch.atom1, exch.atom2, Up())
+    # G_backward = view(G, exch.atom2, exch.atom1, Down())
+    # for j in 1:size(t, 2), i in 1:size(t, 1)
+    #     t[i, j] = s1 * s2 *
+    #               D_site1[i,i] *
+    #                    G_forward[i, j] *
+    #                    D_site2[j, j] *
+    #                    G_backward[j, i]
+    # end
+    # return t
+
+    # println("Flaviano old (Dev) Jω")
     D_site1    = view(D, ra1, ra1)
     D_site2    = view(D, ra2, ra2)
-    s1         = spin_sign(D_site1)
-    s2         = spin_sign(D_site2)
-    t          = zeros(ComplexF64, size(exch.J))
     G_forward  = view(G, exch.atom1, exch.atom2, Up())
     G_backward = view(G, exch.atom2, exch.atom1, Down())
-    for j in 1:size(t, 2), i in 1:size(t, 1)
-        t[i, j] = s1 * s2 *
-                  D_site1[i,i] *
-                       G_forward[i, j] *
-                       D_site2[j, j] *
-                       G_backward[j, i]
-    end
-    return t
+    return spin_sign(D_site1) .* spin_sign(D_site2) .*
+           perturbation_bubble(exch,
+                                     D_site1,
+                                     G_forward,
+                                     D_site2,
+                                     G_backward)
 end
 
 mutable struct AnisotropicExchange2ndOrder{T<:AbstractFloat} <: Exchange{T}

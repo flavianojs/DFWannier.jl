@@ -70,6 +70,13 @@ function generate_TBBlocks(chk::NamedTuple, O_R::Vector)
         other.tb_block .= (o.tb_block' .+ other.tb_block)./2
         o.tb_block .= (other.tb_block' .+ o.tb_block)./2
     end
+
+    digits = 6
+    println("Roudning to $digits digits")
+    for o in out
+        o.block .= round.(o.block, digits=digits)
+        o.tb_block .= round.(o.tb_block, digits=digits)
+    end
     
     return out
 end
